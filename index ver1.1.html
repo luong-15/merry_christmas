@@ -41,10 +41,16 @@
 
         /* Camera Preview Vandiep */
         #camera-preview {
-            position: absolute; top: 15px; right: 15px;
-            width: 120px; height: 90px;
-            border: 2px solid rgba(255,0,0,0.5); 
-            transform: scaleX(-1); opacity: 0.6; border-radius: 8px;
+            position: absolute; 
+            top: 15px; 
+            right: 15px;
+            width: 120px; 
+            height: 90px;
+            border: 2px solid rgba(255,0,0,0.5);
+            transform: scaleX(-1);
+            opacity: 0.6; 
+            border-radius: 8px;
+            object-fit: cover; 
         }
         
         /* Vandiep */
@@ -70,7 +76,7 @@
     <div id="ui-layer">
         <!-- Vandiep -->
         <div class="guide">
-            🖐 <b>Open:</b> Explode &nbsp;|&nbsp; 🫶 <b>Heart:</b> Love &nbsp;|&nbsp; ✊ <b>Fist:</b> Tree
+            🖐 <b>Open:</b> Explode &nbsp;|&nbsp; ✌️ <b>Two Fingers:</b> Love &nbsp;|&nbsp; ✊ <b>Fist:</b> Tree
         </div>
         <button id="btnStart" onclick="startSystem()">START MAGIC</button>
     </div>
@@ -134,10 +140,10 @@
         // 2. SYSTEM CONFIG Vandiep
         // ==========================================
         const CONFIG = {
-            goldCount: 2000,
-            redCount: 300,
-            giftCount: 150,
-            explodeRadius: 65,  
+            goldCount: 1000,
+            redCount: 180,
+            giftCount: 70,
+            explodeRadius: 65,
             photoOrbitRadius: 25,
             treeHeight: 70,
             treeBaseRadius: 35
@@ -148,9 +154,10 @@
         let photoMeshes = [];    
         let titleMesh, starMesh, loveMesh;
         
-        let state = 'TREE'; 
+        let state = 'TREE';
         let selectedIndex = 0;
         let handX = 0.5;
+        let loveFade = 0;
 
         // ==========================================
         // 3. THREE.JS SYSTEM Vandiep
@@ -266,8 +273,8 @@
         }
 
         function createPhotos() {
-            const geo = new THREE.PlaneGeometry(8, 8);
-            const borderGeo = new THREE.PlaneGeometry(9, 9); 
+            const geo = new THREE.PlaneGeometry(11, 11);
+            const borderGeo = new THREE.PlaneGeometry(12, 12); 
             const borderMat = new THREE.MeshBasicMaterial({ color: 0xFFD700 }); 
 
             for(let i=0; i<5; i++) {
@@ -409,7 +416,7 @@
         function animate() {
             requestAnimationFrame(animate);
             const time = Date.now() * 0.001;
-            const speed = 0.08;
+            const speed = 0.07;
             const handRotY = (handX - 0.5) * 4.0;
 
             updateParticleGroup(groupGold, 'gold', state, speed, handRotY, time);
@@ -423,17 +430,19 @@
             });
 
             if (state === 'TREE') {
-                titleMesh.visible = true; starMesh.visible = true; loveMesh.visible = false;
+                titleMesh.visible = true; starMesh.visible = true;
                 titleMesh.scale.lerp(new THREE.Vector3(1,1,1), 0.1);
-                starMesh.rotation.z -= 0.02; 
+                starMesh.rotation.z -= 0.02;
                 starMesh.material.opacity = 0.7 + 0.3*Math.sin(time*5);
                 photoMeshes.forEach(m => { m.scale.lerp(new THREE.Vector3(0,0,0), 0.1); m.visible = false; });
+                loveFade += (0 - loveFade) * 0.3;
 
             } else if (state === 'HEART') {
                 titleMesh.visible = false; starMesh.visible = false; loveMesh.visible = true;
                 photoMeshes.forEach(m => { m.visible = false; });
-                const s = 1 + Math.abs(Math.sin(time*3))*0.1;
+                const s = 1 + Math.abs(Math.sin(time*3))*0.2;
                 loveMesh.scale.set(s,s,1);
+                loveFade += (1 - loveFade) * 0.3;
 
             } else if (state === 'EXPLODE') {
                 titleMesh.visible = false; starMesh.visible = false; loveMesh.visible = false;
@@ -470,6 +479,8 @@
                     }
                 });
             }
+
+            loveMesh.material.opacity = loveFade;
             renderer.render(scene, camera);
         }
 
@@ -478,50 +489,74 @@
             bgMusic.play().catch(e => console.log(e));
             init3D();
 
-            const video = document.getElementsByClassName('input_video')[0];
-            const canvas = document.getElementById('camera-preview');
-            const ctx = canvas.getContext('2d');
-            
-            const hands = new Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
-            hands.setOptions({ maxNumHands: 2, modelComplexity: 1, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
+            // Show loading message
+            const loadingDiv = document.createElement('div');
+            loadingDiv.id = 'loading';
+            loadingDiv.style.position = 'absolute';
+            loadingDiv.style.top = '50%';
+            loadingDiv.style.left = '50%';
+            loadingDiv.style.transform = 'translate(-50%, -50%)';
+            loadingDiv.style.color = '#FFD700';
+            loadingDiv.style.fontSize = '24px';
+            loadingDiv.style.fontWeight = 'bold';
+            loadingDiv.style.zIndex = '200';
+            loadingDiv.innerHTML = 'Initializing Camera...';
+            document.body.appendChild(loadingDiv);
 
-            hands.onResults(results => {
-                ctx.clearRect(0,0,100,75); ctx.drawImage(results.image, 0, 0, 100, 75);
+            setTimeout(() => {
+                const video = document.getElementsByClassName('input_video')[0];
+                const canvas = document.getElementById('camera-preview');
+                const ctx = canvas.getContext('2d');
 
-                // --- Hand Logic  ---
-                if (results.multiHandLandmarks.length === 2) {
-                    const h1 = results.multiHandLandmarks[0]; const h2 = results.multiHandLandmarks[1];
-                    const distIndex = Math.hypot(h1[8].x - h2[8].x, h1[8].y - h2[8].y);
-                    const distThumb = Math.hypot(h1[4].x - h2[4].x, h1[4].y - h2[4].y);
-                    if (distIndex < 0.15 && distThumb < 0.15) {
-                        state = 'HEART'; return;
-                    }
-                }
+                const hands = new Hands({locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`});
+                hands.setOptions({ maxNumHands: 1, modelComplexity: 0, minDetectionConfidence: 0.7, minTrackingConfidence: 0.5 });
 
-                if(results.multiHandLandmarks.length > 0) {
-                    const lm = results.multiHandLandmarks[0];
-                    handX = lm[9].x; 
-                    const tips = [8,12,16,20]; const wrist = lm[0];
-                    let openDist = 0; tips.forEach(i => openDist += Math.hypot(lm[i].x-wrist.x, lm[i].y-wrist.y));
-                    const avgDist = openDist / 4;
-                    const pinchDist = Math.hypot(lm[4].x-lm[8].x, lm[4].y-lm[8].y);
+                hands.onResults(results => {
+                    ctx.clearRect(0,0,160,120); ctx.drawImage(results.image, 0, 0, 160, 120);
 
-                    if (avgDist < 0.25) { 
-                        state = 'TREE'; 
-                    } else if (pinchDist < 0.05) {
-                        state = 'PHOTO'; 
+                    // --- Hand Logic  ---
+                    if(results.multiHandLandmarks.length > 0) {
+                        const lm = results.multiHandLandmarks[0];
+                        handX = lm[9].x;
+
+                        // Check for two fingers up (peace sign)
+                        const distIndex = Math.hypot(lm[8].x - lm[0].x, lm[8].y - lm[0].y);
+                        const distMiddle = Math.hypot(lm[12].x - lm[0].x, lm[12].y - lm[0].y);
+                        const distRing = Math.hypot(lm[16].x - lm[0].x, lm[16].y - lm[0].y);
+                        const distPinky = Math.hypot(lm[20].x - lm[0].x, lm[20].y - lm[0].y);
+                        if (distIndex > 0.3 && distMiddle > 0.3 && distRing < 0.2 && distPinky < 0.2) {
+                            state = 'HEART'; return;
+                        }
+
+                        const tips = [8,12,16,20]; const wrist = lm[0];
+                        let openDist = 0; tips.forEach(i => openDist += Math.hypot(lm[i].x-wrist.x, lm[i].y-wrist.y));
+                        const avgDist = openDist / 4;
+                        const pinchDist = Math.hypot(lm[4].x-lm[8].x, lm[4].y-lm[8].y);
+
+                        if (avgDist < 0.25) {
+                            state = 'TREE';
+                        } else if (pinchDist < 0.05) {
+                            state = 'PHOTO';
+                        } else {
+                            state = 'EXPLODE';
+                        }
                     } else {
-                        state = 'EXPLODE'; 
+                        state = 'TREE';
                     }
-                } else {
-                    state = 'TREE'; 
-                }
-            });
+                });
 
-            const cameraUtils = new Camera(video, {
-                onFrame: async () => { await hands.send({image: video}); }, width: 320, height: 240
-            });
-            cameraUtils.start();
+                const cameraUtils = new Camera(video, {
+                    onFrame: async () => { await hands.send({image: video}); }, width: 120, height: 90
+                });
+                cameraUtils.start();
+
+                // Remove loading message after camera starts
+                setTimeout(() => {
+                    if (document.getElementById('loading')) {
+                        document.body.removeChild(loadingDiv);
+                    }
+                }, 2000);
+            }, 1000); // Delay camera initialization by 1 second
         }
 
         window.addEventListener('resize', () => {
