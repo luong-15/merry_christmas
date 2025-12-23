@@ -24,6 +24,8 @@
             width: 100%;
             height: 100vh;
             display: block;
+            transform: translateZ(0);
+            will-change: transform;
         }
 
         #ui-layer {
@@ -364,7 +366,7 @@
                 group.rotation.x = THREE.MathUtils.lerp(group.rotation.x, 0, 0.2);
                 group.rotation.z = THREE.MathUtils.lerp(group.rotation.z, 0, 0.2);
             } else {
-                group.rotation.y += ((handX - 0.5) * 4 - group.rotation.y) * 0.1;
+                group.rotation.y += ((handX - 0.5) * 4 - group.rotation.y) * 1.5;
                 group.scale.setScalar(THREE.MathUtils.lerp(group.scale.x, 1, 0.1));
                 group.rotation.x = THREE.MathUtils.lerp(group.rotation.x, 0, 0.1);
             }
